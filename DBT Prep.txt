@@ -1,0 +1,655 @@
+Explain the DBT in detail from Basics to Advanced level from Client Interview Perspective, 
+Why its is use for Data Engineering Project, show some Imp queries required in project with Snowflake Data Warehouse, 
+Any difference with SQL, Pyspark. Advanced Level Interview questions with Answers -
+
+
+1. What is DBT (Data Build Tool)?
+
+dbt (data build tool) is an open-source transformation tool that enables data engineers and analytics engineers 
+to transform data inside the data warehouse using SQL.
+
+It follows the ELT approach:
+
+Extract – using tools like Fivetran, Airbyte
+Load – into warehouse like Snowflake, Google BigQuery
+Transform – using DBT
+
+
+Traditional ETL:
+Source → ETL tool → Transform → Load → Warehouse
+Modern ELT with DBT:
+Source → Load into Warehouse → DBT Transform
+
+
+
+2. Why DBT is Used in Data Engineering Projects
+
+Key Reasons
+Reason				Explanation
+SQL based transformations	Engineers write transformations in SQL
+Version Control			Integrates with Git
+Modular models			Break large transformations into reusable pieces
+Documentation			Auto generate data documentation
+Testing				Built-in data quality tests
+Dependency management		DAG of transformations
+Reproducibility			Same transformation every run
+
+
+
+3. Where DBT Fits in Modern Data Stack
+
+Example pipeline:
+
+Source Systems
+   |
+   v
+Fivetran / Airbyte (Ingestion)
+   |
+   v
+Snowflake / BigQuery (Raw Layer)
+   |
+   v
+DBT (Transformation Layer)
+   |
+   v
+BI Tools (Tableau / Power BI / Looker)
+
+
+
+
+4. DBT Architecture
+
+Core components:
+
+Models
+Sources
+Seeds
+Snapshots
+Macros
+Tests
+Documentation
+
+Project structure:
+
+dbt_project/
+|
+|-- models/
+|-- tests/
+|-- macros/
+|-- seeds/
+|-- snapshots/
+|-- dbt_project.yml
+|-- packages.yml
+
+
+
+5. DBT Models (Most Important Concept)
+
+Models in dbt (data build tool) are SQL files that define transformations on raw data stored in a data warehouse. 
+Each model represents a SELECT query that DBT compiles and executes to create tables or views in the warehouse.
+
+A model = SQL file that creates table/view
+
+The purpose of DBT models is to transform raw data into clean, structured, and analytics-ready datasets. 
+They help implement the ELT (Extract-Load-Transform) approach where transformation happens inside the warehouse.
+
+Example:
+
+models/staging/stg_orders.sql
+
+SQL:
+
+SELECT
+    order_id,
+    customer_id,
+    order_date,
+    total_amount
+FROM raw.orders
+
+Run command:
+
+dbt run
+
+DBT converts SQL → table/view in Snowflake.
+
+
+
+
+6. DBT Materializations
+
+Materialization decides how DBT stores the model.
+
+Type			Description
+view			Creates view
+table			Creates physical table
+incremental		Loads only new data
+ephemeral		Temporary model
+materialized view	Database-managed view
+
+Example:
+
+{{ config(materialized='table') }}
+
+SELECT * FROM raw.orders
+
+
+
+
+7. Incremental Models (Very Important Interview Topic)
+
+Used for large datasets.
+
+Example:
+
+{{ config(materialized='incremental') }}
+
+SELECT *
+FROM raw.orders
+WHERE order_date > (
+    SELECT MAX(order_date)
+    FROM {{ this }}
+)
+
+Meaning:
+
+Only new records get inserted.
+
+Used heavily in Snowflake projects.
+
+
+
+
+8. DBT Sources
+
+Define raw source tables.
+
+Example:
+
+sources:
+  - name: raw
+    database: sales_db
+    schema: raw_schema
+
+    tables:
+      - name: orders
+      - name: customers
+
+Query reference:
+
+SELECT *
+FROM {{ source('raw','orders') }}
+
+Benefits:
+
+lineage tracking
+source testing
+documentation
+
+
+
+
+
+
+9. DBT Testing
+
+DBT provides data quality tests.
+
+Types:
+
+1. Generic Tests
+
+Example:
+
+models:
+  - name: dim_customers
+    columns:
+      - name: customer_id
+        tests:
+          - unique
+          - not_null
+
+2. Custom Tests
+
+Example SQL:
+
+SELECT customer_id
+FROM dim_customers
+GROUP BY customer_id
+HAVING COUNT(*) > 1
+
+Run:
+
+dbt test
+
+
+
+
+
+10. DBT Snapshots (Slowly Changing Dimensions)
+
+Used to track historical changes.
+
+Example:
+
+{% snapshot customer_snapshot %}
+
+{{
+config(
+target_schema='snapshots',
+unique_key='customer_id',
+strategy='timestamp',
+updated_at='updated_at'
+)
+}}
+
+SELECT * FROM raw.customers
+
+{% endsnapshot %}
+
+Captures changes in customer data over time.
+
+
+
+
+
+11. DBT Macros (Reusable SQL)
+
+Macros = SQL functions using Jinja
+
+Example:
+
+{% macro calculate_tax(amount) %}
+
+amount * 0.18
+
+{% endmacro %}
+
+Usage:
+
+SELECT
+order_id,
+{{ calculate_tax(total_amount) }} AS tax
+FROM orders
+
+
+
+
+12. DBT Documentation
+
+Generate docs automatically.
+
+Command:
+
+dbt docs generate
+dbt docs serve
+
+Shows:
+
+data lineage
+model dependency
+column descriptions
+
+
+
+
+
+
+13. DBT DAG (Directed Acyclic Graph)
+
+DBT automatically builds dependency graph.
+
+Example:
+
+raw_orders
+   |
+stg_orders
+   |
+fct_sales
+   |
+sales_dashboard
+
+DBT runs models in correct order.
+
+
+
+
+
+
+14. Important DBT Commands
+Command	Purpose
+dbt run		run models
+dbt test	run tests
+dbt seed	load CSV
+dbt snapshot	run snapshots
+dbt docs	generate docs
+dbt compile	compile SQL
+
+
+
+
+15. Example Real Project Queries with Snowflake
+
+1. Staging Layer
+SELECT
+order_id,
+customer_id,
+order_date,
+total_amount
+FROM {{ source('sales','orders') }}
+WHERE order_status='completed'
+
+2. Dimension Table
+SELECT
+customer_id,
+customer_name,
+customer_email,
+customer_country
+FROM {{ source('sales','customers') }}
+
+3. Fact Table
+SELECT
+o.order_id,
+o.order_date,
+c.customer_id,
+o.total_amount
+FROM {{ ref('stg_orders') }} o
+JOIN {{ ref('dim_customers') }} c
+ON o.customer_id = c.customer_id
+
+4. Incremental Model Example
+{{ config(materialized='incremental') }}
+
+SELECT *
+FROM {{ ref('stg_orders') }}
+
+{% if is_incremental() %}
+
+WHERE order_date >
+(
+SELECT MAX(order_date)
+FROM {{ this }}
+)
+
+{% endif %}
+
+
+
+
+
+16. DBT vs SQL
+Feature		SQL	DBT
+Transformation	Yes	Yes
+Version control	No	Yes
+Data testing	Manual	Built-in
+DAG		No	Yes
+Documentation	Manual	Auto
+CI/CD		No	Yes
+
+SQL = language
+DBT = framework built on SQL
+
+
+
+
+
+17. DBT vs PySpark
+Feature		DBT				PySpark
+Language	SQL				Python
+Engine		Warehouse compute		Spark cluster
+Best for	warehouse transformations	big data processing
+Infrastructure	simpler				heavy cluster
+
+Example:
+
+DBT query:
+
+SELECT customer_id, SUM(amount)
+FROM orders
+GROUP BY customer_id
+
+PySpark:
+
+df.groupBy("customer_id").sum("amount")
+
+
+
+
+
+18. DBT with Snowflake Best Practices
+
+Use staging layer
+Use incremental models
+Use clustering keys
+Avoid heavy CTE nesting
+Use ref() for dependencies
+
+Example:
+
+raw → staging → intermediate → marts
+
+
+
+
+
+19. Advanced DBT Interview Questions (Client Level)
+
+
+Q1 What is ref() in DBT?
+
+Answer:
+
+ref() creates dependency between models.
+
+Example:
+
+SELECT *
+FROM {{ ref('stg_orders') }}
+
+Benefits:
+
+automatic DAG
+environment aware
+schema abstraction
+
+
+
+Q2 Difference Between Source() and Ref()
+Function	Purpose
+source()	raw source tables
+ref()		dbt models
+
+Example:
+
+source() → raw layer
+ref() → transformed models
+
+
+
+Q3 What is DBT Incremental Model?
+
+Model that processes only new records instead of full table rebuild.
+
+Used for large tables.
+
+
+
+
+Q4 What is DBT Ephemeral Model?
+
+Temporary model used inside other models.
+
+It does not create table.
+
+Example:
+
+{{ config(materialized='ephemeral') }}
+
+
+
+Q5 What is DBT Seed?
+
+Seeds load CSV files into warehouse.
+
+Example:
+
+data/country_codes.csv
+
+Run:
+
+dbt seed
+
+
+
+
+Q6 What is DBT Snapshot Strategy?
+
+Two strategies:
+
+timestamp
+
+check
+
+Used for SCD Type 2 tracking.
+
+
+
+
+Q7 How DBT Handles Dependencies?
+
+Using:
+
+ref()
+
+DBT builds DAG automatically.
+
+
+
+
+Q8 How do you optimize DBT models?
+
+Answer:
+
+incremental models
+
+avoid SELECT *
+
+use partition keys
+
+reduce joins
+
+clustering in Snowflake
+
+
+
+
+Q9 How do you schedule DBT pipelines?
+
+Using orchestrators like:
+
+Apache Airflow
+
+Prefect
+
+Dagster
+
+
+
+
+
+Q10 What is DBT Jinja?
+
+Jinja = templating language used in DBT.
+
+Example:
+
+{% for i in range(1,5) %}
+
+SELECT {{ i }}
+
+{% endfor %}
+
+
+
+
+20. Real Client Interview Scenario Question
+
+Question:
+
+How would you design a DBT pipeline for sales analytics?
+
+Answer:
+
+Steps:
+
+Load raw data into Snowflake
+
+Create staging models
+
+Build dimension tables
+
+Build fact tables
+
+Add tests
+
+Create documentation
+
+Schedule with Airflow
+
+
+Pipeline:
+
+raw_orders
+   ↓
+stg_orders
+   ↓
+fct_sales
+   ↓
+dashboard
+
+
+
+
+21. Advanced Concepts (Senior Level)
+
+DBT packages
+
+custom macros
+
+CI/CD integration
+
+model contracts
+
+dbt exposures
+
+semantic layer
+
+Example package:
+
+dbt_utils
+
+
+
+22. DBT vs Traditional ETL Tools
+Tool		Category
+Informatica PowerCenter	ETL
+Talend	ETL
+dbt (data build tool)	ELT transformation
+
+
+
+
+23. End-to-End Real Data Engineering Stack
+
+Example stack used in projects:
+
+Salesforce / APIs
+        ↓
+Fivetran
+        ↓
+Snowflake
+        ↓
+DBT
+        ↓
+Airflow
+        ↓
+Tableau

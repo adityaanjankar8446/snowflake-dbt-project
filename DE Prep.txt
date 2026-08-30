@@ -1,0 +1,236 @@
+
+Data Modeling
+
+What is Data Modeling?
+
+Data Modeling is the process of designing how data is structured, stored, and related inside a database or data system. 
+It defines entities, attributes, relationships, rules, and constraints so that data can be stored efficiently and 
+used correctly by applications, analytics, or reporting systems.
+
+In simple terms:
+
+Data Modeling = Blueprint of how data will be organized in a system.
+
+
+Business Understanding
+        ↓
+Requirement Gathering
+        ↓
+Conceptual Data Model
+        ↓
+Logical Data Model
+        ↓
+Physical Data Model
+        ↓
+Database Implementation
+        ↓
+Optimization & Maintenance
+
+
+
+Main Components
+Component	Meaning
+Entity		Object in the business
+Attribute	Property of entity
+Relationship	Connection between entities
+
+
+Data modeling is critical for:
+
+Scalable systems
+Data quality
+Analytics
+Performance
+
+
+
+
+OLTP (Online Transaction Processing)
+
+OLTP systems manage day-to-day business transactions.
+
+Examples:
+
+Banking transactions
+
+Order processing
+
+Inventory updates
+
+
+Typical databases:
+
+MySQL
+
+PostgreSQL
+
+
+Characteristics
+Feature		Description
+Data Model	Highly normalized
+Operations	INSERT / UPDATE
+Queries		Short transactions
+Users		Thousands
+
+
+
+OLAP (Online Analytical Processing)
+
+OLAP systems are used for data analysis and reporting.
+
+Platforms:
+Snowflake
+Amazon Redshift
+Google BigQuery
+
+Characteristics
+Feature		Description
+Data Model	Dimensional
+Queries		Complex analytics
+Operations	Read heavy
+Data Size	Very large
+
+Example queries:
+Total sales by region
+Revenue by product category
+Monthly customer growth
+
+
+
+
+OLTP vs OLAP
+Feature		OLTP		OLAP
+
+Purpose		Transactions	Analytics
+Data Structure	Normalized	Dimensional
+Query Type	Simple		Complex
+Data Size	GBs		TBs / PBs
+
+
+
+Slowly Changing Dimensions (SCD)
+
+In Data Warehousing, dimension data often changes over time.
+
+SCD Type 1 – Overwrite
+Old data is replaced.
+
+SCD Type 2 – Historical Tracking
+New record is created.
+Full history maintained
+
+SCD Type 3 – Limited History
+Store previous value in another column.
+
+
+
+
+Normalization
+Normalization organizes data to reduce redundancy.
+
+Denormalization
+Denormalization intentionally duplicates data to improve performance.
+
+Normalization vs Denormalization
+Feature		Normalization	Denormalization
+Redundancy	Low		Higher
+Performance	Slower queries	Faster queries
+Usage		OLTP		OLAP
+
+
+
+What is Data Mart?
+
+A Data Mart is a subset of a Data Warehouse designed for a specific business department or use case.
+It contains focused, curated data that is optimized for a particular team like sales, marketing, finance, or HR.
+
+Think of it like this:
+
+Data Warehouse → Entire company data
+
+Data Mart → Department-specific data
+
+In Data Engineering, Data Marts help deliver clean, structured, and business-ready datasets for analytics and reporting.
+
+
+
+1. Dependent Data Mart
+
+This type comes from an existing Data Warehouse.
+
+2. Independent Data Mart
+
+This type is built directly from source systems without a warehouse.
+
+3. Hybrid Data Mart
+
+Combination of both:
+
+A Data Mart is a subject-oriented subset of a Data Warehouse designed for a specific department or business function, 
+optimized for faster analytics and easier access to relevant data.
+
+
+
+
+Key Type	Purpose
+
+Primary Key	Uniquely identifies rows
+Foreign Key	Links two tables
+Candidate Key	Possible primary keys
+Super Key	Any unique column combination
+Alternate Key	Candidate key not chosen as PK
+Composite Key	Multiple columns as key
+Natural Key	Real-world identifier
+Surrogate Key	Artificial system-generated key
+Unique Key	Ensures uniqueness
+Secondary Key	Used for searching
+
+
+✅ In Data Engineering (ETL, Warehousing):
+
+Surrogate Keys → used in dimension tables
+
+Foreign Keys → connect fact and dimension tables
+
+Composite Keys → common in fact tables
+
+
+
+What is CDC (Change Data Capture)?
+
+CDC (Change Data Capture) is a technique used to capture and track changes (insert, update, delete) in a database 
+so that only modified data is processed instead of the entire dataset.
+
+Change Data Capture (CDC) tracks changes in source database tables and sends those changes to another system like:
+Data Warehouse
+Data Lake
+Analytics system
+Streaming platform
+
+Instead of loading full data repeatedly, CDC loads only the changes.
+1. Timestamp-Based CDC    -  Uses Last Updated Timestamp column.
+2. Log-Based CDC	  -  Reads the database transaction logs to capture changes.
+3. Trigger-Based CDC	  -  Database triggers track changes and store them in a separate table.
+4. Snapshot-Based CDC     -  System periodically compares old snapshot vs new snapshot.
+
+
+CDC in Snowflake is implemented using Streams and Tasks. 
+Streams capture row-level changes (INSERT, UPDATE, DELETE) from a table, and 
+Tasks automate processing of those changes to load incremental data into target tables.
+
+Types of Streams in Snowflake
+1. Standard Stream
+Tracks changes in tables.
+
+CREATE STREAM table_stream ON TABLE orders;
+
+2. Append-Only Stream
+Tracks only INSERT operations.
+Useful for event logs.
+
+CREATE STREAM append_stream
+ON TABLE logs
+APPEND_ONLY = TRUE;
+
+3. Streams on Views
+Tracks changes from underlying tables through a view.

@@ -1,0 +1,188 @@
+Snowflake Handson -
+
+
+Table Types:
+
+Permanant Table		- Default table type in Snowflake. Data is persisted and supports Time Travel + Fail-safe.
+Temporary Table		- Exists only for the session. Automatically dropped when the session ends.
+Transient Table		- Similar to permanent tables but no Fail-safe, only Time Travel (shorter data retention).
+External Table		- Used when data is stored outside Snowflake (like AWS S3, Azure Blob, GCS).
+
+Views Types:
+
+Standard View	   - whenever we run *, every time Table get scan, bring the data, do the aggregation and give result to user - 
+		     A logical view created from a table query.
+Secured View	   - Used for data sharing and hides underlying table logic.
+Materialized View  - Snowflake automatically does the aggregation at the back end, 
+		     stored the data in cache and every time we run the * the data get pulled from that particular cache.
+		     for faster query, for complex query execution.
+		     Stores precomputed query results for faster performance.
+
+
+Quick Summary
+Object			Storage			Use Case
+Permanent Table		Full storage		Default production tables
+Temporary Table		Session only		Intermediate calculations
+Transient Table		No Fail-safe		Cost optimization
+External Table		External storage	Data in S3/Azure/GCS
+Standard View		Logical query		Data abstraction
+Secure View		Protected view		Secure data sharing
+Materialized View	Precomputed data	Performance optimization
+
+
+
+Stages in Snowflakes:
+
+Stages are locations used to store data files (CSV, JSON, Parquet, etc.) before loading them into tables using commands like COPY INTO. 
+They act as a temporary storage area between external files and Snowflake tables.
+
+Stage Types:
+
+Table Stage 		Created Automatically  - A Table Stage is automatically created for every table in Snowflake. @%table_name
+User Stage		Created Automatically  - A User Stage is automatically created for each Snowflake user. @~
+Named Stage (External)	Created Manually       - A Named Stage is a user-created stage. Can reference internal storage or external storage (S3, Azure, GCS)
+						 Most commonly used in production pipelines.
+
+
+
+Stage Types Comparison
+
+Stage Type	Created By	Scope			Stage Name
+Table Stage	Automatically	Single table		@%table_name
+User Stage	Automatically	Single user		@~
+Named Stage	Manually	Shared across objects	@stage_name
+
+
+
+
+File Format in Snowflake:
+
+In Snowflake, a File Format object defines how Snowflake should read data files (CSV, JSON, Parquet, etc.) 
+when loading them from a Stage into tables using commands like COPY INTO.
+
+Creating a File Format helps avoid repeating file configuration every time you load data.
+
+
+
+
+Data Loading
+
+Batch Loading - COPY Command Manually
+Continuous Loading - Snow PIPE 
+			1. SnowPIPE REST API
+			2. AutoIngest
+
+
+External Stage
+Amazon S3 -----Snowflake
+
+Create User Role in S3 and allow IAM access S3FullAccess
+Create Target Table in Snowflake
+Create Storage Integration in Snowflake
+Create File Format
+Create External Stage
+Create Bucket containing file in S3
+Copy the data from Stage to Table
+
+
+
+AWS S3 (Continuous Data) --- Ingest Queue ---- PIPE ---- Snowflake Table
+
+File uploaded to Amazon S3 bucket
+S3 Event Notification triggers
+Notification sent to AWS SQS
+Snowpipe listens to SQS
+Snowpipe runs COPY INTO
+Data loaded into Snowflake table
+
+
+
+S3 Bucket
+   │
+   ▼
+S3 Event Notification
+   │
+   ▼
+AWS SQS Queue
+   │
+   ▼
+Snowpipe
+   │
+   ▼
+Snowflake Table
+
+
+1. Create Target Table in Snowflake
+2. Create File Format in Snowflake
+3. Create Storage Integration
+	- AWS IAM role trust policy
+	a. IAM User ARN
+	b. External ID
+4. Create External Stage
+5. Create Snowpipe
+6. Get Notification Channel - SHOW PIPES;
+7. Configure AWS S3 Event Notification
+	Open S3 Bucket
+	Go to Properties
+	Select Event Notifications
+	Add event:
+
+
+
+Snowflake Stream:
+
+Standard Stream
+Append only Stream
+Insert only Stream (External Table)
+
+Column			Meaning
+METADATA$ACTION		INSERT / DELETE
+METADATA$ISUPDATE	TRUE if update
+METADATA$ROW_ID		Unique row identifier
+
+
+Snowflake Tasks
+Parameters:
+
+Schedule 	- when should be task triggered
+Warehouse 	- what compute cluster should be used
+Code 		- the sql command to run
+Condition 	- boolean expression that gets evaluated when the task is triggered.
+		  It determines whether the Task will be executed or skipped if the condition is not met.
+
+
+Time Travel
+ 
+Clause		Purpose
+
+AT		Access table at exact time or query
+BEFORE		Access data just before a statement
+OFFSET		Access data relative to current time
+
+Object		Command
+Table		UNDROP TABLE table_name;
+Schema		UNDROP SCHEMA schema_name;
+Database	UNDROP DATABASE database_name;
+
+
+
+Zero Copy Cloning:
+
+Because Snowflake does not copy the physical data. 
+It only creates metadata pointers to existing micro-partitions, saving time and storage.
+
+Object			Query
+Table Clone		CREATE TABLE clone_table CLONE table_name;
+Schema Clone		CREATE SCHEMA clone_schema CLONE schema_name;
+Database Clone		CREATE DATABASE clone_db CLONE database_name;
+Time Travel Clone	CLONE table AT (OFFSET / TIMESTAMP)
+
+
+
+COPY INTO RAW_USERDATA
+FROM (
+    SELECT OBJECT_CONSTRUCT(*)
+    FROM @s3_stage
+)
+FILE_FORMAT = (FORMAT_NAME = USER_CSV_FORMAT)
+ON_ERROR = 'CONTINUE';

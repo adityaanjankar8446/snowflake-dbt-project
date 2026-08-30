@@ -1,0 +1,856 @@
+Advanced Snowflake Topics (Senior Interviews)
+
+Important topics for 3–8 year experience:
+
+Streams
+
+Tasks
+
+Materialized views
+
+Snowpipe
+
+External tables
+
+Query profiling
+
+Resource monitors
+
+Zero copy cloning
+
+Secure data sharing
+
+Data masking
+
+
+
+
+
+1️⃣  Streams in Snowflake
+What is a Stream?
+
+A Stream is a Change Data Capture (CDC) mechanism that tracks changes made to a table.
+
+It records:
+
+INSERT
+
+UPDATE
+
+DELETE
+
+Streams capture delta changes since the last consumption.
+
+Why Streams are Used
+
+Used for incremental data processing in ETL pipelines.
+
+	Instead of processing the entire table, you process only changed data.
+
+How Streams Work
+
+Stream stores metadata of changes using table versioning.
+
+Example flow:
+
+Source Table
+     │
+     ▼
+Stream (captures changes)
+     │
+     ▼
+Task / ETL Process
+     │
+     ▼
+Target Table
+Example
+
+Create Stream
+
+CREATE STREAM orders_stream
+ON TABLE orders;
+
+Query changes
+
+SELECT * FROM orders_stream;
+
+Columns added automatically:
+
+METADATA$ACTION
+
+METADATA$ISUPDATE
+
+METADATA$ROW_ID
+
+Interview Tip
+
+Streams are commonly used with Tasks for automation.
+
+
+
+
+2️⃣ Tasks in Snowflake
+What is a Task?
+
+A Task is a scheduler used to automate SQL operations.
+
+It works similar to cron jobs.
+
+Why Tasks are Used
+
+To automate:
+
+ETL pipelines
+Data transformations
+Incremental processing
+
+Example
+CREATE TASK load_sales_task
+WAREHOUSE = compute_wh
+SCHEDULE = '1 HOUR'
+AS
+INSERT INTO sales_summary
+SELECT * FROM sales_stream;
+
+This runs every 1 hour.
+
+Task + Stream Pipeline
+Source Table
+     │
+     ▼
+Stream
+     │
+     ▼
+Task (scheduled job)
+     │
+     ▼
+Target Table
+
+This creates fully automated pipelines.
+
+Types of Tasks
+
+Scheduled Tasks
+
+Triggered Tasks
+
+Task Trees (Dependencies)
+
+Example:
+
+Task A → Task B → Task C
+
+
+
+
+
+3️⃣ Materialized Views
+What is a Materialized View?
+
+A Materialized View (MV) stores pre-computed query results.
+
+Unlike normal views, results are physically stored.
+
+Why Materialized Views are Used
+
+To improve performance for frequently executed complex queries.
+
+Example scenarios:
+
+Aggregations
+
+Large joins
+
+Reporting dashboards
+
+Example
+CREATE MATERIALIZED VIEW sales_mv AS
+SELECT region, SUM(amount)
+FROM sales
+GROUP BY region;
+
+Query becomes faster because aggregation is precomputed.
+
+Important Points
+Feature	Description
+Storage	Consumes storage
+Maintenance	Automatically refreshed
+Performance	Much faster queries
+Interview Tip
+
+Materialized Views are ideal for BI dashboards like:
+
+Tableau
+
+Microsoft Power BI
+
+
+
+
+
+
+4️⃣ Snowpipe
+What is Snowpipe?
+
+Snowpipe is a continuous data ingestion service.
+
+It loads data automatically when new files arrive.
+
+Why Snowpipe is Used
+
+For near real-time ingestion.
+
+Traditional approach:
+
+Manual COPY command
+
+Snowpipe approach:
+
+File arrival → Auto ingestion
+Example Architecture
+Application
+     │
+     ▼
+Cloud Storage (S3)
+     │
+     ▼
+Snowpipe
+     │
+     ▼
+Snowflake Table
+
+Storage examples:
+
+Amazon S3
+
+Azure Blob Storage
+
+Example
+CREATE PIPE orders_pipe
+AS
+COPY INTO orders
+FROM @orders_stage
+FILE_FORMAT = (TYPE = CSV);
+Interview Tip
+
+Snowpipe is serverless, meaning:
+
+No warehouse required
+
+Auto scaling
+
+
+
+
+
+
+5️⃣ External Tables
+What are External Tables?
+
+External Tables allow querying data stored outside Snowflake.
+
+Data remains in cloud storage.
+
+Supported Storage
+
+Amazon S3
+
+Google Cloud Platform
+
+Microsoft Azure
+
+Example
+CREATE EXTERNAL TABLE ext_sales
+WITH LOCATION=@s3_stage
+FILE_FORMAT=(TYPE=PARQUET);
+Benefits
+
+✔ Query large data lakes
+✔ No need to load data
+✔ Reduced storage cost
+
+Use Case
+Data Lake (S3)
+      │
+      ▼
+External Table
+      │
+      ▼
+Snowflake Queries
+
+
+
+
+
+
+6️⃣ Query Profiling
+What is Query Profiling?
+
+Query Profiling helps analyze query performance.
+
+It shows:
+execution time
+scanning
+partition pruning
+joins
+bottlenecks
+
+How to Access
+Snowflake UI:
+
+History → Query → Profile
+Information Provided
+
+Query execution stages
+
+Data scanned
+
+Time per operation
+
+Warehouse utilization
+
+Interview Tip
+
+Use query profiling to detect:
+
+full table scans
+
+inefficient joins
+
+missing clustering
+
+
+
+
+
+
+7️⃣ Resource Monitors
+What are Resource Monitors?
+
+Resource monitors control compute cost usage.
+
+They monitor warehouse credit consumption.
+
+Why Important
+
+Snowflake uses pay-per-use pricing.
+
+Without monitors → costs may explode.
+
+Example
+CREATE RESOURCE MONITOR monthly_monitor
+WITH CREDIT_QUOTA = 100
+TRIGGERS
+ON 90 PERCENT DO NOTIFY
+ON 100 PERCENT DO SUSPEND;
+Actions Available
+Threshold	Action
+80%	Notify
+90%	Alert
+100%	Suspend warehouse
+
+
+
+
+
+
+
+8️⃣ Zero Copy Cloning
+What is Zero Copy Cloning?
+
+Zero-copy cloning creates instant copies of objects without duplicating data.
+
+Supported objects:
+databases
+schemas
+tables
+
+Why It’s Powerful
+
+Clone uses metadata pointers, not actual storage.
+
+Benefits:
+
+✔ Instant cloning
+✔ No storage cost initially
+✔ Useful for testing
+
+Example
+CREATE TABLE sales_clone
+CLONE sales;
+Use Case
+Production Table
+       │
+       ▼
+Clone
+       │
+       ▼
+Testing / Development
+
+
+
+
+
+
+9️⃣ Secure Data Sharing
+
+Snowflake allows sharing live data between accounts.
+
+No copying required.
+
+Example
+Provider Account
+      │
+      ▼
+Share Object
+      │
+      ▼
+Consumer Account
+Advantages
+
+✔ Real-time data sharing
+✔ No ETL required
+✔ Secure access
+
+Real Example
+
+Many companies share datasets using:
+
+Snowflake Inc. Data Marketplace
+
+
+
+
+
+🔟 Data Masking
+What is Data Masking?
+
+Data masking protects sensitive data.
+
+Example sensitive fields:
+
+Credit card numbers
+
+SSN
+
+Personal information
+
+Example
+CREATE MASKING POLICY mask_ssn
+AS (val STRING) 
+RETURNS STRING ->
+CASE
+  WHEN CURRENT_ROLE() = 'ADMIN'
+  THEN val
+  ELSE 'XXX-XX-XXXX'
+END;
+
+Apply policy:
+
+ALTER TABLE customers
+MODIFY COLUMN ssn
+SET MASKING POLICY mask_ssn;
+Result
+Role	Data Visible
+Admin	Full SSN
+Analyst	Masked
+
+
+
+
+
+
+1️⃣ What is Snowflake?
+
+Snowflake is a cloud-based data warehousing platform designed for storing, processing, and analyzing large volumes of data.
+
+It is built for the cloud and runs on:
+
+Amazon Web Services
+Microsoft Azure
+Google Cloud Platform
+
+Key Characteristics
+
+Fully managed (no infrastructure management)
+Separate compute and storage
+Supports structured and semi-structured data
+High scalability and concurrency
+Pay-as-you-use pricing
+
+Example Use Case
+
+A company collects data from:
+
+Applications
+APIs
+Databases
+Logs
+
+This data is stored and processed in Snowflake and visualized using BI tools like:
+
+Tableau
+
+Microsoft Power BI
+
+
+
+
+
+
+
+
+2️⃣ Why Snowflake is Better Than Traditional Data Warehouses?
+
+Traditional data warehouses like:
+
+Oracle Database
+
+Teradata
+
+have limitations.
+
+Comparison
+
+Feature			Traditional DW	Snowflake
+Infrastructure		Manual setup	Fully managed
+Scaling			Difficult	Auto scaling
+Storage & Compute	Coupled		Separated
+Concurrency		Limited		Multiple warehouses
+Maintenance		High		Minimal
+
+Major Advantages
+
+1. Separation of compute and storage
+
+Storage and compute scale independently.
+
+2. High concurrency
+
+Multiple virtual warehouses allow many users to run queries simultaneously.
+
+3. Automatic optimization
+
+No need for manual indexing or partitioning.
+
+4. Cost efficiency
+
+You only pay for resources used.
+
+
+
+
+
+
+
+3️⃣ Explain Snowflake Architecture
+
+Snowflake architecture has three main layers.
+
+Client Layer
+(BI Tools / Applications)
+        │
+        ▼
+Query Processing Layer
+(Virtual Warehouses)
+        │
+        ▼
+Cloud Services Layer
+(Metadata / Security)
+        │
+        ▼
+Storage Layer
+(Compressed Columnar Storage)
+1 Storage Layer
+
+Stores data in compressed columnar format in cloud storage such as:
+
+Amazon S3
+
+Azure Blob Storage
+
+Features:
+
+automatic compression
+
+micro-partitioning
+
+encryption
+
+
+2 Query Processing Layer
+
+This layer consists of Virtual Warehouses.
+
+A virtual warehouse is a compute cluster used to execute SQL queries.
+
+Example:
+
+Warehouse A → ETL jobs
+Warehouse B → BI dashboards
+Warehouse C → Data science queries
+
+Each warehouse runs independently.
+
+3 Cloud Services Layer
+
+This layer manages:
+
+authentication
+
+query optimization
+
+metadata
+
+access control
+
+transaction management
+
+
+
+
+
+
+4️⃣ What is Snowpipe?
+
+Snowpipe is a serverless service used for continuous data ingestion.
+
+It automatically loads data when new files arrive in cloud storage.
+
+Example Flow
+Application
+   │
+   ▼
+Cloud Storage (S3)
+   │
+   ▼
+Snowpipe
+   │
+   ▼
+Snowflake Table
+Benefits
+
+near real-time data ingestion
+
+automatic loading
+
+serverless (no warehouse needed)
+
+Example SQL
+CREATE PIPE orders_pipe
+AS
+COPY INTO orders
+FROM @orders_stage
+FILE_FORMAT = (TYPE = CSV);
+
+
+
+
+5️⃣ Difference Between Transient and Temporary Tables
+
+Snowflake provides different table types.
+
+Feature		Temporary Table		Transient Table
+Visibility	Session only		Persistent
+Time Travel	No			Limited
+Fail-safe	No			No
+Use Case	Temporary processing	Intermediate data
+Temporary Tables
+
+Exist only during the session
+
+Automatically deleted when the session ends
+
+Example:
+
+CREATE TEMP TABLE temp_sales (
+ id INT,
+ amount NUMBER
+);
+Transient Tables
+
+Persist beyond sessions
+
+Used for staging or intermediate data
+
+Example:
+
+CREATE TRANSIENT TABLE stage_sales (
+ id INT,
+ amount NUMBER
+);
+
+
+
+
+
+
+
+
+6️⃣ What is Time Travel?
+
+Time Travel allows you to access historical versions of data.
+
+You can query data from the past or recover deleted records.
+
+Example
+SELECT * FROM sales
+AT (TIMESTAMP => '2025-01-10 10:00:00');
+Use Cases
+
+recover deleted tables
+
+audit data changes
+
+rollback mistakes
+
+Retention Period
+Edition		Retention
+Standard	1 day
+Enterprise	up to 90 days
+
+
+
+
+
+7️⃣ How Micro-Partitioning Works
+
+Snowflake automatically divides tables into micro-partitions (~16 MB).
+
+These partitions store:
+
+column metadata
+min/max values
+statistics
+
+Example
+
+Table with 100 million rows
+
+Table
+ ├─ Micro Partition 1
+ ├─ Micro Partition 2
+ ├─ Micro Partition 3
+
+Each partition contains metadata.
+
+Benefit
+
+When a query runs:
+
+SELECT * FROM sales
+WHERE date = '2025-01-01'
+
+Snowflake scans only relevant partitions.
+
+This is called partition pruning.
+
+Result → faster queries.
+
+
+
+
+
+
+
+8️⃣ Explain Clustering Keys
+
+Clustering keys improve query performance on very large tables.
+
+They help Snowflake organize micro-partitions more efficiently.
+
+Example
+
+Table: Sales
+
+Queries often filter by date
+
+SELECT *
+FROM sales
+WHERE order_date = '2025-02-01'
+
+Create clustering key:
+
+ALTER TABLE sales
+CLUSTER BY (order_date);
+Benefit
+
+better partition pruning
+
+faster queries
+
+reduced data scanning
+
+When to Use
+
+Only for very large tables (TBs of data).
+
+
+
+
+
+
+9️⃣ What is Zero Copy Cloning?
+
+Zero-copy cloning creates instant copies of tables, schemas, or databases without copying data.
+
+Instead of copying data, Snowflake copies metadata pointers.
+
+Example
+CREATE TABLE sales_clone
+CLONE sales;
+Benefits
+
+instant cloning
+
+no extra storage initially
+
+useful for testing
+
+Example Scenario
+Production Database
+        │
+        ▼
+Clone Database
+        │
+        ▼
+Testing / Development
+
+If new changes occur, only changed data consumes storage.
+
+
+
+
+
+
+🔟 How Snowflake Handles Concurrency
+
+Concurrency means multiple users running queries at the same time.
+
+Snowflake handles this using Virtual Warehouses.
+
+Each warehouse works independently.
+
+Example
+User 1 → Warehouse A
+User 2 → Warehouse B
+User 3 → Warehouse C
+
+Queries do not compete for resources.
+
+Multi-Cluster Warehouses
+
+Snowflake can automatically add clusters.
+
+Example:
+
+Cluster 1 → Query load
+Cluster 2 → Additional load
+Cluster 3 → Peak traffic
+
+This allows thousands of concurrent queries.
+
+
+
+
+

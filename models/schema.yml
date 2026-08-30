@@ -1,0 +1,52 @@
+version: 2
+
+sources:
+  - name: mydb
+    database: mydb
+    schema: myschema
+    tables:
+      - name: raw_customers
+        description: Raw customer data loaded from S3
+
+      - name: raw_accounts
+        description: Raw account data loaded from S3
+
+      - name: raw_transactions
+        description: Raw transaction data loaded from S3
+
+
+
+
+models:
+  - name: stg_accounts
+    description: "Cleaned staging accounts"
+    tests:
+      - not_null:
+          column_name: account_id
+      - unique:
+          column_name: account_id
+
+  - name: stg_customers
+    description: "Cleaned staging customers"
+    tests:
+      - not_null:
+          column_name: customer_id
+      - unique:
+          column_name: customer_id
+
+  - name: stg_transactions
+    description: "Cleaned staging transactions"
+    tests:
+      - not_null:
+          column_name: transaction_id
+      - not_null:
+          column_name: account_id
+
+  - name: customer_transaction_summary
+    tests:
+      - not_null:
+          column_name: customer_id
+  - name: account_balance
+    tests:
+      - not_null:
+          column_name: account_id

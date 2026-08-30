@@ -1,0 +1,28 @@
+
+name: 'snowflake_project1'
+version: '1.0.0'
+
+profile: 'snowflake_project1'
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+# Configuring models
+models:
+  snowflake_project1:
+    staging:
+      +materialized: table
+    dimensions:
+      +materialized: table
+    facts:
+      +materialized: table
+    marts:
+      +materialized: table
